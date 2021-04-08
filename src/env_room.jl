@@ -45,7 +45,7 @@ mutable struct Rectangle
         retval.height = corners[2, 2] - corners[1, 2]
         mean_vals = mean(corners, dims=1)
         retval.midpoint = SVec2(mean_vals[1, 1], mean_vals[1, 2])
-        
+
         # compute area in which robot could be initialized
         retval.xl = corners[2, 1]
         retval.xu = corners[3, 1]
@@ -69,7 +69,7 @@ mutable struct Rectangle
         end
         @assert retval.width > 0.0 && retval.height > 0.0 "Negative width or height"
         retval.area = retval.width * retval.height
-        
+
         retval.segments = [LineSegment(corners[i, :], corners[i+1, :], (goal_idx == i), (stair_idx == i)) for i =1:3 if walls[i]]
         if walls[4]
             push!(retval.segments, LineSegment(corners[1, :], corners[4, :], (goal_idx == 4), (stair_idx == 4)))
@@ -162,7 +162,7 @@ function furthest_step(rect::Rectangle, pos::SVec2, heading::SVec2)
     return fs
 end
 
-# computes the length of a ray from robot center to closest segment 
+# computes the length of a ray from robot center to closest segment
 # from p0 pointing in direction heading
 function ray_length(rect::Rectangle, pos::SVec2, heading::SVec2)
     rl = Inf
@@ -258,7 +258,7 @@ mutable struct Room
 
         retval.rectangles = rectangles
         retval.areas = [r.area for r in rectangles]
-        
+
         retval
     end
 end
@@ -299,7 +299,7 @@ end
 function contact_wall(r::Rectangle, wall::Int, pos::SVec2)
     wc,_ = wall_contact(r, pos)
     return wc == wall
-end    
+end
 
 # Determines if pos (center of robot) is within the room
 function in_room(r::Room, pos::SVec2)
@@ -309,7 +309,7 @@ function in_room(r::Room, pos::SVec2)
         end
     end
     return false
-end 
+end
 
 # Attempts to translate from pos0 in direction heading for des_step without violating boundaries
 function legal_translate(r::Room, pos0::SVec2, heading::SVec2, des_step::Float64)

@@ -20,12 +20,30 @@ State of a Roomba.
 - `theta::Float64` orientation in radians
 - `status::Bool` indicator whether robot has reached goal state or stairs
 """
-struct RoombaState <: FieldVector{4, Float64}
+
+num_obs = 5
+struct ObstacleState <: FieldVector{2, Float64}
+    x::Float64
+    y::Float64
+end
+
+struct HumanState <: FieldVector{4, Float64}
+    x::Float64
+    y::Float64
+    theta::Float64
+    velocity::Float64
+end
+
+struct RoombaState
     x::Float64
     y::Float64
     theta::Float64
     status::Float64
+    # obstacles::SVector{num_obs, ObstacleState}
+    # human::HumanState
+    # visited
 end
+
 
 # Struct for a Roomba action
 struct RoombaAct <: FieldVector{2, Float64}
@@ -64,7 +82,7 @@ Define the Roomba MDP.
     v_max::Float64  = 10.0  # m/s
     om_max::Float64 = 1.0   # rad/s
     dt::Float64     = 0.5   # s
-    contact_pen::Float64 = -1.0 
+    contact_pen::Float64 = -1.0
     time_pen::Float64 = -0.1
     goal_reward::Float64 = 10
     stairs_penalty::Float64 = -10
@@ -145,7 +163,7 @@ struct Bumper end
 POMDPs.obstype(::Type{Bumper}) = Bool
 POMDPs.obstype(::Bumper) = Bool
 
-struct Lidar 
+struct Lidar
     ray_stdev::Float64 # measurement noise: see POMDPs.observation definition
                        # below for usage
 end
@@ -227,13 +245,12 @@ function POMDPs.transition(m::RoombaMDP{SS}, s::RoombaState, a::RoombaAct) where
     return Deterministic(index_to_state(m, si))
 end
 
-function get_next_state(m::RoombaMDP, s::RoombaState, a::RoombaAct)
+function get_next_x_y_th(m::RoombaMDP, x::Float64, y::Float64, th::Float64, a::RoombaAct)
     v, om = a
     v = clamp(v, 0.0, m.v_max)
     om = clamp(om, -m.om_max, m.om_max)
 
     # propagate dynamics without wall considerations
-    x, y, th, _ = s
     dt = m.dt
 
     # dynamics assume robot rotates and then translates
@@ -244,6 +261,11 @@ function get_next_state(m::RoombaMDP, s::RoombaState, a::RoombaAct)
     heading = SVec2(cos(next_th), sin(next_th))
     des_step = v*dt
     next_x, next_y = legal_translate(m.room, p0, heading, des_step)
+    return next_x, next_y
+end
+
+function get_next_state(m::RoombaMDP, s::RoombaState, a::RoombaAct)
+    next_x, next_y = get_next_x_y_th(m, s.x, s.y, s.theta, a)
 
     # Determine whether goal state or stairs have been reached
     r = room(m)
@@ -274,7 +296,7 @@ POMDPs.states(m::RoombaModel{SS}) where SS <: ContinuousRoombaStateSpace = sspac
 # return the number of states in a DiscreteRoombaStateSpace
 function n_states(m::RoombaModel{SS}) where SS <: DiscreteRoombaStateSpace
     ss = sspace(m)
-    return prod((convert(Int, diff(ss.XLIMS)[1]/ss.x_step)+1, 
+    return prod((convert(Int, diff(ss.XLIMS)[1]/ss.x_step)+1,
                         convert(Int, diff(ss.YLIMS)[1]/ss.y_step)+1,
                         round(Int, 2*pi/ss.th_step)+1,
                         3))
@@ -319,10 +341,10 @@ end
 
 # defines reward function R(s,a,s')
 function POMDPs.reward(m::RoombaModel,
-                s::RoombaState, 
+                s::RoombaState,
                 a::RoombaAct,
                 sp::RoombaState)
-    
+
     # penalty for each timestep elapsed
     cum_reward = mdp(m).time_pen
 
@@ -337,14 +359,15 @@ function POMDPs.reward(m::RoombaModel,
     cum_reward += mdp(m).goal_reward*(sp.status == 1.0)
     cum_reward += mdp(m).stairs_penalty*(sp.status == -1.0)
 
-    return cum_reward  
+    return cum_reward
 end
 
 # determine if a terminal state has been reached
+# POMDPs.isterminal(m::RoombaModel, s::RoombaState) = (sum(s.visited) == (length(states(m))-num_obs) || (s.x == s.human.x && s.y == s.human.y))
 POMDPs.isterminal(m::RoombaModel, s::RoombaState) = abs(s.status) > 0.0
 
 # Bumper POMDP observation
-function POMDPs.observation(m::BumperPOMDP, 
+function POMDPs.observation(m::BumperPOMDP,
                             a::RoombaAct,
                             sp::RoombaState)
     return Deterministic(wall_contact(m, sp)) # in {0.0,1.0}
@@ -375,7 +398,7 @@ function POMDPs.observations(m::LidarPOMDP)
 end
 
 # DiscreteLidar POMDP observation
-function POMDPs.observation(m::DiscreteLidarPOMDP{SS, AS}, 
+function POMDPs.observation(m::DiscreteLidarPOMDP{SS, AS},
                             a::AbstractVector{Float64},
                             sp::AbstractVector{Float64}) where {SS, AS}
 
@@ -397,7 +420,7 @@ end
 
 n_observations(m::DiscreteLidarPOMDP) = length(sensor(m).disc_points) + 1
 POMDPs.observations(m::DiscreteLidarPOMDP) = vec(1:n_observations(m))
-                        
+
 # define discount factor
 POMDPs.discount(m::RoombaModel) = mdp(m).discount
 
@@ -412,6 +435,12 @@ POMDPs.initialstate(m::RoombaModel) = RoombaInitialDistribution(m)
 function get_a_random_state(m::RoombaMDP, rng::AbstractRNG)
     x, y = init_pos(m.room, rng)
     th = rand(rng) * 2*pi - pi
+
+    h_x, h_y = init_pos(m.room, rng)
+    h_th = rand(rng) * 2*pi - pi
+    # human = HumanState(h_x, h_y, h_th, 1)
+    # obstacles = [ObstacleState(2, 3), ObstacleState(5, 3), ObstacleState(4, 7), ObstacleState(3, 7), ObstacleState(8, 9)]
+    # visited = zeros(n_states(m))
     return RoombaState(x, y, th, 0.0)
 end
 
