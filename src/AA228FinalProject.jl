@@ -17,6 +17,7 @@ using NearestNeighbors
 import POMDPModelTools: render
 
 export
+    FullRoombaState,
     RoombaState,
     RoombaAct,
     RoombaMDP,

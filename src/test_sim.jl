@@ -12,7 +12,9 @@ using Printf
 
 sensor = Lidar() # or Bumper() for the bumper version of the environment
 config = 3 # 1,2, or 3
-m = RoombaPOMDP(sensor=sensor, mdp=RoombaMDP(config=config));
+speed = 2.0
+aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
+m = RoombaPOMDP(sensor=sensor, mdp=RoombaMDP(config=config, aspace=aspace));
 
 num_particles = 10000
 v_noise_coefficient = 2.0
@@ -30,7 +32,7 @@ goal_xy = get_goal_xy(m)
 
 # define a new function that takes in the policy struct and current belief,
 # and returns the desired action
-function POMDPs.action(p::ToEnd, b::ParticleCollection{RoombaState})
+function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
 
     # spin around to localize for the first 25 time-steps
     if p.ts < 25
@@ -42,8 +44,7 @@ function POMDPs.action(p::ToEnd, b::ParticleCollection{RoombaState})
     # after 25 time-steps, we follow a proportional controller to navigate
     # directly to the goal, using the mean belief state
 
-    # compute mean belief of a subset of particles
-    s = mean(b)
+    s = maximum(b)
 
     # compute the difference between our current heading and one that would
     # point to the goal
@@ -61,7 +62,6 @@ function POMDPs.action(p::ToEnd, b::ParticleCollection{RoombaState})
 
     return RoombaAct(v, om)
 end
-
 
 
 # first seed the environment
