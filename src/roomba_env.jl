@@ -236,13 +236,11 @@ function get_goal_xy(m::RoombaModel)
 end
 
 # transition Roomba state given curent state and action
-POMDPs.transition(m::RoombaPOMDP, s::RoombaState, a::RoombaAct) = transition(m.mdp, s, a)
-POMDPs.transition(m::RoombaMDP{SS}, s::RoombaState, a::RoombaAct) where SS <: ContinuousRoombaStateSpace = Deterministic(get_next_state(m, s, a))
+POMDPs.transition(m::RoombaPOMDP, s::FullRoombaState, a::RoombaAct) = transition(m.mdp, s, a)
+POMDPs.transition(m::RoombaMDP{SS}, s::FullRoombaState, a::RoombaAct) where SS <: ContinuousRoombaStateSpace = Deterministic(get_next_state(m, s, a))
 
-function POMDPs.transition(m::RoombaMDP{SS}, s::RoombaState, a::RoombaAct) where SS <: DiscreteRoombaStateSpace
-    # round the states to nearest grid point
-    si = stateindex(m, get_next_state(m, s, a))
-    return Deterministic(index_to_state(m, si))
+function POMDPs.transition(m::RoombaMDP{SS}, s::FullRoombaState, a::RoombaAct) where SS <: DiscreteRoombaStateSpace
+    return Deterministic(get_next_state(m, s, a))
 end
 
 function get_next_x_y_th(m::RoombaMDP, x::Float64, y::Float64, th::Float64, a::RoombaAct)
@@ -276,7 +274,7 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
 
     visited = deepcopy(s.visited)
     visited[position_to_index(m, roomba.x, roomba.y)] = 1.0
-    
+
     return FullRoombaState(rs, hs, s.obstacles, visited)
 end
 
@@ -313,12 +311,13 @@ function get_possible_visited_states(visited_states, n::Int64)
 end
 
 function position_to_index(m::RoombaModel, x::Float64, y::Float64)
-    ss = sspace(m)
+    ss = dsspace(m)
+
     return round(x, RoundToZero) * ss.XLIMS[2] + round(y, RoundToZero)
 end
 
 function index_to_position(m::RoombaModel, index::Int64)
-    ss = sspace(m)
+    ss = dsspace(m)
     x = round(index/ss.XLIMS[2], RoundToZero)
     y = mod(index, ss.XLIMS[2])
     return x, y
