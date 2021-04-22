@@ -25,19 +25,18 @@ include("env_room.jl")
 include("roomba_env.jl")
 include("filtering.jl")
 
-
-
 s = Lidar()
 config = 3 # 1,2, or 3
 speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
-num_particles = 10000
+num_particles = 1000
 v_noise_coefficient = 2.0
 om_noise_coefficient = 0.5
 
 belief_updater = RoombaParticleFilter(m, num_particles, v_noise_coefficient, om_noise_coefficient);
+
 
 # Define the policy to test
 mutable struct ToEnd <: Policy
@@ -60,8 +59,9 @@ function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
 
     # after 25 time-steps, we follow a proportional controller to navigate
     # directly to the goal, using the mean belief state
-
-    s = maximum(b)
+    @show typeof(b)
+    @show sizeof(b)
+    s = mean(b)
 
     # compute the difference between our current heading and one that would
     # point to the goal
@@ -92,13 +92,11 @@ c = @GtkCanvas()
 win = GtkWindow(c, "Roomba Environment", 600, 600)
 for (t, step) in enumerate(stepthrough(m, p, belief_updater, max_steps=100))
     @guarded draw(c) do widget
-
         # the following lines render the room, the particles, and the roomba
         ctx = getgc(c)
         set_source_rgb(ctx,1,1,1)
         paint(ctx)
         render(ctx, m, step)
-
         # render some information that can help with debugging
         # here, we render the time-step, the state, and the observation
         move_to(ctx,300,400)

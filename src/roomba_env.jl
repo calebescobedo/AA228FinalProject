@@ -124,7 +124,7 @@ Define the Roomba MDP.
 - `sspace::SS` environment state-space (ContinuousRoombaStateSpace or DiscreteRoombaStateSpace)
 - `aspace::AS` environment action-space struct
 """
-@with_kw mutable struct RoombaMDP{SS,AS} <: MDP{RoombaState, RoombaAct}
+@with_kw mutable struct RoombaMDP{SS,AS} <: MDP{FullRoombaState, RoombaAct}
     v_max::Float64  = 10.0  # m/s
     om_max::Float64 = 1.0   # rad/s
     dt::Float64     = 0.5   # s
@@ -148,7 +148,7 @@ Fields:
 - `sensor::T` struct specifying the sensor used (Lidar or Bump)
 - `mdp::T` underlying RoombaMDP
 """
-struct RoombaPOMDP{SS, AS, T, O} <: POMDP{RoombaState, RoombaAct, O}
+struct RoombaPOMDP{SS, AS, T, O} <: POMDP{FullRoombaState, RoombaAct, O}
     sensor::T
     mdp::RoombaMDP{SS, AS}
 end
@@ -266,6 +266,7 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
     roomba = s.roomba
     next_x, next_y, next_th = get_next_x_y_th(m, roomba.x, roomba.y, roomba.theta, a)
     human = s.human
+    # TODO: make the human walk in a line again and again
     next_h_x, next_h_y, next_h_th = get_next_x_y_th(m, human.x, human.y, human.theta, rand(actions(m)))
 
     # define next state
@@ -472,7 +473,7 @@ function render(ctx::CairoContext, m::RoombaModel, step)
         bp = step[:bp]
         if bp isa AbstractParticleBelief
             for p in particles(bp)
-                x, y = transform_coords(SVec2(p[1],p[2]))
+                x, y = transform_coords(SVec2(p.roomba[1],p.roomba[2]))
                 arc(ctx, x, y, radius, 0, 2*pi)
                 set_source_rgba(ctx, 0.6, 0.6, 1, 0.3)
                 fill(ctx)
@@ -484,14 +485,14 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     render(env.room, ctx)
 
     # Find center of robot in frame and draw circle
-    x, y = transform_coords(SVec2(state[1],state[2]))
+    x, y = transform_coords(SVec2(state.roomba[1],state.roomba[2]))
     arc(ctx, x, y, radius, 0, 2*pi)
     set_source_rgb(ctx, 1, 0.6, 0.6)
     fill(ctx)
 
     # Draw line indicating orientation
     move_to(ctx, x, y)
-    end_point = SVec2(state[1] + ROBOT_W.val*cos(state[3])/2, state[2] + ROBOT_W.val*sin(state[3])/2)
+    end_point = SVec2(state.roomba[1] + ROBOT_W.val*cos(state.roomba[3])/2, state.roomba[2] + ROBOT_W.val*sin(state.roomba[3])/2)
     end_x, end_y = transform_coords(end_point)
     line_to(ctx, end_x, end_y)
     set_source_rgb(ctx, 0, 0, 0)
