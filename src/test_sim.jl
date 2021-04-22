@@ -1,20 +1,37 @@
-using AA228FinalProject
+# using AA228FinalProject
 using POMDPs
 using POMDPPolicies
 using BeliefUpdaters
 using ParticleFilters
+using StaticArrays
+using Distributions
+using Parameters
+using POMDPModelTools
+using Statistics
+using Graphics
+using LinearAlgebra
+using Base64
+using NearestNeighbors
+
+import POMDPModelTools: render
 using POMDPSimulators
 using Cairo
 using Gtk
 using Random
 using Printf
 
+include("line_segment_utils.jl")
+include("env_room.jl")
+include("roomba_env.jl")
+include("filtering.jl")
 
-sensor = Lidar() # or Bumper() for the bumper version of the environment
+
+
+s = Lidar()
 config = 3 # 1,2, or 3
 speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
-m = RoombaPOMDP(sensor=sensor, mdp=RoombaMDP(config=config, aspace=aspace));
+m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
 num_particles = 10000
 v_noise_coefficient = 2.0

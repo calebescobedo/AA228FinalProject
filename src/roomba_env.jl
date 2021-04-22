@@ -312,7 +312,6 @@ end
 
 function position_to_index(m::RoombaModel, x::Float64, y::Float64)
     ss = dsspace(m)
-
     return round(x, RoundToZero) * ss.XLIMS[2] + round(y, RoundToZero)
 end
 
