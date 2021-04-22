@@ -273,7 +273,7 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
     hs = HumanState(next_h_x, next_h_y, next_h_th)
 
     visited = deepcopy(s.visited)
-    visited[position_to_index(m, roomba.x, roomba.y)] = 1.0
+    visited[state_to_index(m, roomba.x, roomba.y)] = 1.0
 
     return FullRoombaState(rs, hs, s.obstacles, visited)
 end
@@ -283,9 +283,9 @@ function POMDPs.states(m::RoombaModel)
     ss = dsspace(m)
     x_states = range(ss.XLIMS[1], stop=ss.XLIMS[2], step=ss.x_step)
     y_states = range(ss.YLIMS[1], stop=ss.YLIMS[2], step=ss.y_step)
-    th_states = range(-pi, stop=pi, step=ss.th_step)
+    th_states = range(-pi, stop=pi, step=0.174533)
     roomba_states = vec(collect(RoombaState(x,y,th) for x in x_states, y in y_states, th in th_states))
-    human_states = vec(collect(Human(x,y,th) for x in x_states, y in y_states, th in th_states))
+    human_states = vec(collect(HumanState(x,y,th) for x in x_states, y in y_states, th in th_states))
     obstacle_states = [ObstacleState(2, 3), ObstacleState(5, 3), ObstacleState(4, 7), ObstacleState(3, 7), ObstacleState(8, 9)]
     visited_states = get_possible_visited_states([], length(x_states)*length(y_states))
     return vec(collect(FullRoombaState(rs, hs, obstacle_states, vs) for rb in roomba_states, hs in human_states, vs in visited_states))
@@ -310,20 +310,6 @@ function get_possible_visited_states(visited_states, n::Int64)
     end
 end
 
-function position_to_index(m::RoombaModel, x::Float64, y::Float64)
-    ss = dsspace(m)
-    return round(x, RoundToZero) * ss.XLIMS[2] + round(y, RoundToZero)
-end
-
-function index_to_position(m::RoombaModel, index::Int64)
-    ss = dsspace(m)
-    x = round(index/ss.XLIMS[2], RoundToZero)
-    y = mod(index, ss.XLIMS[2])
-    return x, y
-end
-
-POMDPs.states(m::RoombaModel{SS}) where SS <: ContinuousRoombaStateSpace = sspace(m)
-
 # return the number of states in a DiscreteRoombaStateSpace
 function n_states(m::RoombaModel)
     ss = dsspace(m)
@@ -333,10 +319,10 @@ function n_states(m::RoombaModel)
 end
 
 # map a RoombaState to an index in a DiscreteRoombaStateSpace
-function POMDPs.stateindex(m::RoombaModel, s::RoombaState)
+function state_to_index(m::RoombaModel, x::Float64, y::Float64)
     ss = dsspace(m)
-    xind = floor(Int, (s[1] - ss.XLIMS[1]) / ss.x_step + 0.5) + 1
-    yind = floor(Int, (s[2] - ss.YLIMS[1]) / ss.y_step + 0.5)
+    xind = floor(Int, (x - ss.XLIMS[1]) / ss.x_step + 0.5) + 1
+    yind = floor(Int, (y - ss.YLIMS[1]) / ss.y_step + 0.5)
     xind + ss.indices[1] * yind
 end
 
@@ -401,7 +387,7 @@ POMDPs.observations(m::BumperPOMDP) = [false, true]
 
 # Lidar POMDP observation
 function lidar_obs_distribution(m::RoombaMDP, ray_stdev::Float64, sp::FullRoombaState)
-    x, y, th = sp.x, sp.y, sp.theta
+    x, y, th = sp.roomba.x, sp.roomba.y, sp.roomba.theta
     # determine uncorrupted observation
     rl = ray_length(m.room, SVec2(x, y), SVec2(cos(th), sin(th)))
     # compute observation noise
