@@ -31,7 +31,7 @@ speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
-num_particles = 1000
+num_particles = 5000
 v_noise_coefficient = 2.0
 om_noise_coefficient = 0.5
 
@@ -51,9 +51,9 @@ goal_xy = get_goal_xy(m)
 function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
 
     # spin around to localize for the first 25 time-steps
-    if p.ts < 25
+    if p.ts < 50
         p.ts += 1
-        return RoombaAct(0.,1.0) # all actions are of type RoombaAct(v,om)
+        return RoombaAct(0.,-1.0) # all actions are of type RoombaAct(v,om)
     end
     p.ts += 1
 

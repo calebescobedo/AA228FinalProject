@@ -267,7 +267,26 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
     next_x, next_y, next_th = get_next_x_y_th(m, roomba.x, roomba.y, roomba.theta, a)
     human = s.human
     # TODO: make the human walk in a line again and again
-    next_h_x, next_h_y, next_h_th = get_next_x_y_th(m, human.x, human.y, human.theta, rand(actions(m)))
+
+    h_th = -1.0
+    if human.theta >= 3.14 && human.x < -6.0
+        h_th = 0.0
+    elseif human.theta <= 0 && human.x > 1.0
+        h_th = 3.14
+    end
+
+    change_human_ang = false
+    if h_th != -1.0
+        change_human_ang = true
+    end
+    next_h_x, next_h_y, next_h_th = 0.0, 0.0, 0.0
+
+    if change_human_ang
+        next_h_x, next_h_y, next_h_th = get_next_x_y_th(m, human.x, human.y, h_th, RoombaAct(1, 0))
+    else
+        next_h_x, next_h_y, next_h_th = get_next_x_y_th(m, human.x, human.y, human.theta, RoombaAct(1, 0))
+    end
+
 
     # define next state
     rs = RoombaState(next_x, next_y, next_th)
@@ -391,6 +410,17 @@ function lidar_obs_distribution(m::RoombaMDP, ray_stdev::Float64, sp::FullRoomba
     x, y, th = sp.roomba.x, sp.roomba.y, sp.roomba.theta
     # determine uncorrupted observation
     rl = ray_length(m.room, SVec2(x, y), SVec2(cos(th), sin(th)))
+    ang_to_human = atan(sp.human.y-y, sp.human.x-x)
+    # @show rl, x, y, sp.human.x, sp.human.y, ang_to_human, th
+    rl_to_human = float(Inf)
+    if abs(ang_to_human - th) < 0.0873*2 # around 5 deg
+        rl_to_human = norm([sp.human.y-y, sp.human.x-x])
+    end
+
+    if rl_to_human < rl
+        rl = rl_to_human
+    end
+
     # compute observation noise
     sigma = ray_stdev * max(rl, 0.01)
     # disallow negative measurements
@@ -473,13 +503,30 @@ function render(ctx::CairoContext, m::RoombaModel, step)
         bp = step[:bp]
         if bp isa AbstractParticleBelief
             for p in particles(bp)
+                # draw rommba location belief
                 x, y = transform_coords(SVec2(p.roomba[1],p.roomba[2]))
                 arc(ctx, x, y, radius, 0, 2*pi)
                 set_source_rgba(ctx, 0.6, 0.6, 1, 0.3)
                 fill(ctx)
+
+                # draw human location belief
+                x_h, y_h = transform_coords(SVec2(p.human[1],p.human[2]))
+                arc(ctx, x_h, y_h, radius, 0, 2*pi)
+                set_source_rgba(ctx, 0, 0, 0, 0.3)
+                fill(ctx)
+
+                # draw obj locations
+                for obs in p.obstacles
+                    x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
+                    arc(ctx, x_o, y_o, radius, 0, 2*pi)
+                    set_source_rgba(ctx, 0, 0.5, 0.5, 0.1)
+                    fill(ctx)
+                end
             end
         end
     end
+
+
 
     # Render room
     render(env.room, ctx)
@@ -489,6 +536,20 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     arc(ctx, x, y, radius, 0, 2*pi)
     set_source_rgb(ctx, 1, 0.6, 0.6)
     fill(ctx)
+
+    # Draw real human location
+    x_h, y_h = transform_coords(SVec2(state.human[1],state.human[2]))
+    arc(ctx, x_h, y_h, radius, 0, 2*pi)
+    set_source_rgb(ctx, 1, 0.0, 1)
+    fill(ctx)
+
+    # Draw real obs locations, why are these the exact same?
+    for obs in state.obstacles
+        x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
+        arc(ctx, x_o, y_o, radius, 0, 2*pi)
+        set_source_rgb(ctx, 0, 0, 1)
+        fill(ctx)
+    end
 
     # Draw line indicating orientation
     move_to(ctx, x, y)
