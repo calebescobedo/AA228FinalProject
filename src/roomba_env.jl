@@ -287,12 +287,18 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
         next_h_x, next_h_y, next_h_th = get_next_x_y_th(m, human.x, human.y, human.theta, RoombaAct(1, 0))
     end
 
-
     # define next state
     rs = RoombaState(next_x, next_y, next_th)
     hs = HumanState(next_h_x, next_h_y, next_h_th)
 
+    if wall_contact(m, hs)
+        # if next human state hits the wall, turn around
+        next_h_th = next_h_th + pi
+        hs = HumanState(next_h_x, next_h_y, wrap_to_pi(next_h_th))
+    end
+
     visited = deepcopy(s.visited)
+    # @show state_to_index(m, roomba.x, roomba.y)
     visited[state_to_index(m, roomba.x, roomba.y)] = 1.0
 
     return FullRoombaState(rs, hs, s.obstacles, visited)
@@ -381,8 +387,11 @@ function POMDPs.reward(m::RoombaModel,
     end
 
     # penalty for bumping into human
-    if state_to_index(m, sp.roomba.x, sp.roomba.y) == state_to_index(m, sp.human.x, sp.human.y)
-        cum_reward += mdp(m).contact_pen * 5
+    dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
+    if dis_to_human < 1
+        cum_reward += mdp(m).contact_pen * 10
+    elseif dis_to_human < 2
+        cum_reward += mdp(m).contact_pen * 3
     end
 
     # reward for covering new area
@@ -392,7 +401,12 @@ function POMDPs.reward(m::RoombaModel,
 end
 
 # determine if a terminal state has been reached
-POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = (sum(s.visited) == (n_states(m)-num_obs) || (state_to_index(m, s.roomba.x, s.roomba.y) == state_to_index(m, s.human.x, s.human.y)))
+POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = check_terminal(m, s)
+
+function check_terminal(m::RoombaModel, s::FullRoombaState)
+    dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
+    return (sum(s.visited) == (n_states(m)-num_obs) || dis_to_human < 1)
+end
 
 # Bumper POMDP observation
 function POMDPs.observation(m::BumperPOMDP,
@@ -510,22 +524,20 @@ function render(ctx::CairoContext, m::RoombaModel, step)
 
                 # draw human location belief
                 x_h, y_h = transform_coords(SVec2(p.human[1],p.human[2]))
-                arc(ctx, x_h, y_h, radius, 0, 2*pi)
+                arc(ctx, x_h, y_h, radius*1.2, 0, 2*pi)
                 set_source_rgba(ctx, 0, 0, 0, 0.3)
                 fill(ctx)
 
-                # draw obj locations
-                for obs in p.obstacles
-                    x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
-                    arc(ctx, x_o, y_o, radius, 0, 2*pi)
-                    set_source_rgba(ctx, 0, 0.5, 0.5, 0.1)
-                    fill(ctx)
-                end
+                # # draw obj locations
+                # for obs in p.obstacles
+                #     x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
+                #     arc(ctx, x_o, y_o, radius*1.2, 0, 2*pi)
+                #     set_source_rgba(ctx, 0, 0.5, 0.5, 0.1)
+                #     fill(ctx)
+                # end
             end
         end
     end
-
-
 
     # Render room
     render(env.room, ctx)
@@ -543,12 +555,29 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     fill(ctx)
 
     # Draw real obs locations, why are these the exact same?
-    for obs in state.obstacles
-        x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
-        arc(ctx, x_o, y_o, radius, 0, 2*pi)
-        set_source_rgb(ctx, 0, 0, 1)
-        fill(ctx)
+    # for obs in state.obstacles
+    #     x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
+    #     arc(ctx, x_o, y_o, radius, 0, 2*pi)
+    #     set_source_rgb(ctx, 0, 0, 1)
+    #     fill(ctx)
+    # end
+
+    ss = dsspace(m)
+    x_states = range(ss.XLIMS[1], stop=ss.XLIMS[2], step=ss.x_step)
+    y_states = range(ss.YLIMS[1], stop=ss.YLIMS[2], step=ss.y_step)
+    for x in x_states
+        for y in y_states
+            if state.visited[state_to_index(m, x, y)] == 1.0
+                x_v, y_v = transform_coords(SVec2(x, y))
+                arc(ctx, floor(x_v), floor(y_v), radius, 0, 2*pi)
+                set_source_rgb(ctx, 0, 1.0, 0)
+                fill(ctx)
+            end
+        end
     end
+
+
+
 
     # Draw line indicating orientation
     move_to(ctx, x, y)
