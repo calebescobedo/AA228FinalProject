@@ -32,8 +32,8 @@ aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
 num_particles = 5000
-v_noise_coefficient = 2.0
-om_noise_coefficient = 0.5
+v_noise_coefficient = 1.0
+om_noise_coefficient = 0.25
 
 belief_updater = RoombaParticleFilter(m, num_particles, v_noise_coefficient, om_noise_coefficient);
 
@@ -50,18 +50,16 @@ goal_xy = get_goal_xy(m)
 # and returns the desired action
 function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
 
-    # spin around to localize for the first 25 time-steps
-    if p.ts < 50
+    # spin around to localize for the first 50 time-steps
+    if p.ts < 20
         p.ts += 1
         return RoombaAct(0.,-1.0) # all actions are of type RoombaAct(v,om)
     end
     p.ts += 1
 
-    # after 25 time-steps, we follow a proportional controller to navigate
+    # after 50 time-steps, we follow a proportional controller to navigate
     # directly to the goal, using the mean belief state
-    @show typeof(b)
-    @show sizeof(b)
-    s = mean(b)
+    s = mean(b) # TODO: right now we can't take the mean of our system, how can we add all parts togeather
 
     # compute the difference between our current heading and one that would
     # point to the goal

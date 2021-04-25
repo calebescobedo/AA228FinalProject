@@ -375,13 +375,13 @@ function POMDPs.reward(m::RoombaModel,
 
     # penalty for bumping into obstacles
     for obs in sp.obstacles
-        if sp.roomba.x == obs.x && sp.roomba.y == obs.y
+        if state_to_index(m, sp.roomba.x, sp.roomba.y) == state_to_index(m, obs.x, obs.y)
             cum_reward += mdp(m).contact_pen
         end
     end
 
     # penalty for bumping into human
-    if sp.roomba.x == sp.human.x && sp.roomba.y == sp.human.y
+    if state_to_index(m, sp.roomba.x, sp.roomba.y) == state_to_index(m, sp.human.x, sp.human.y)
         cum_reward += mdp(m).contact_pen * 5
     end
 
@@ -392,8 +392,7 @@ function POMDPs.reward(m::RoombaModel,
 end
 
 # determine if a terminal state has been reached
-# POMDPs.isterminal(m::RoombaModel, s::RoombaState) = (sum(s.visited) == (length(states(m))-num_obs) || (s.x == s.human.x && s.y == s.human.y))
-POMDPs.isterminal(m::RoombaModel, s::RoombaState) = abs(s.status) > 0.0
+POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = (sum(s.visited) == (n_states(m)-num_obs) || (state_to_index(m, s.roomba.x, s.roomba.y) == state_to_index(m, s.human.x, s.human.y)))
 
 # Bumper POMDP observation
 function POMDPs.observation(m::BumperPOMDP,
