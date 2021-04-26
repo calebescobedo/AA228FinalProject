@@ -21,7 +21,6 @@ State of a Roomba.
 - `status::Bool` indicator whether robot has reached goal state or stairs
 """
 
-num_obs = 5
 struct ObstacleState <: FieldVector{2, Float64}
     x::Float64
     y::Float64
@@ -83,13 +82,18 @@ end
 # function to construct DiscreteRoombaStateSpace:
 # `num_x_pts::Int` number of points to discretize x range to
 # `num_y_pts::Int` number of points to discretize yrange to
-function DiscreteRoombaStateSpace(num_x_pts::Int, num_y_pts::Int)
+# `config::Int` environment configuration
+function DiscreteRoombaStateSpace(num_x_pts::Int, num_y_pts::Int, config::Int=1)
 
     # hardcoded room-limits
     # watch for consistency with env_room
-    XLIMS = SVec2(-30.0, 20.0)
-    YLIMS = SVec2(-30.0, 20.0)
-
+    if config == 4
+        XLIMS = SVec2(-8.0, 8.0)
+        YLIMS = SVec2(-6.0, 6.0)
+    else
+        XLIMS = SVec2(-30.0, 20.0)
+        YLIMS = SVec2(-30.0, 20.0)
+    end
     x_step = (XLIMS[2]-XLIMS[1])/(num_x_pts-1)
     y_step = (YLIMS[2]-YLIMS[1])/(num_y_pts-1)
 
@@ -210,6 +214,15 @@ RoombaPOMDP(;sensor=Bumper(), mdp=RoombaMDP()) = RoombaPOMDP(sensor,mdp)
 # function to determine if there is contact with a wall
 wall_contact(e::RoombaModel, state) = wall_contact(mdp(e).room, SVec2(state.x, state.y))
 
+function obstacle_contact(s::FullRoombaState, state)
+    for obstacle in s.obstacles
+        if norm([obstacle.x-state.x, obstacle.y-state.y]) < 1
+            return true
+        end
+    end
+    return false
+end
+
 POMDPs.actions(m::RoombaModel) = mdp(m).aspace
 n_actions(m::RoombaModel) = length(mdp(m).aspace)
 
@@ -291,7 +304,7 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
     rs = RoombaState(next_x, next_y, next_th)
     hs = HumanState(next_h_x, next_h_y, next_h_th)
 
-    if wall_contact(m, hs)
+    if wall_contact(m, hs) || obstacle_contact(s, hs)
         # if next human state hits the wall, turn around
         next_h_th = next_h_th + pi
         hs = HumanState(next_h_x, next_h_y, wrap_to_pi(next_h_th))
@@ -302,19 +315,6 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
     visited[state_to_index(m, roomba.x, roomba.y)] = 1.0
 
     return FullRoombaState(rs, hs, s.obstacles, visited)
-end
-
-# enumerate all possible states in a FullRoombaState with DiscreteRoombaStateSpace
-function POMDPs.states(m::RoombaModel)
-    ss = dsspace(m)
-    x_states = range(ss.XLIMS[1], stop=ss.XLIMS[2], step=ss.x_step)
-    y_states = range(ss.YLIMS[1], stop=ss.YLIMS[2], step=ss.y_step)
-    th_states = range(-pi, stop=pi, step=0.174533)
-    roomba_states = vec(collect(RoombaState(x,y,th) for x in x_states, y in y_states, th in th_states))
-    human_states = vec(collect(HumanState(x,y,th) for x in x_states, y in y_states, th in th_states))
-    obstacle_states = [ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9)]
-    visited_states = get_possible_visited_states([], length(x_states)*length(y_states))
-    return vec(collect(FullRoombaState(rs, hs, obstacle_states, vs) for rb in roomba_states, hs in human_states, vs in visited_states))
 end
 
 function get_possible_visited_states(visited_states, n::Int64)
@@ -408,7 +408,7 @@ POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = check_terminal(m, s)
 
 function check_terminal(m::RoombaModel, s::FullRoombaState)
     dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
-    return (sum(s.visited) == (n_states(m)-num_obs) || dis_to_human < 1)
+    return (sum(s.visited) == (n_states(m)-length(s.obstacles)) || dis_to_human < 1)
 end
 
 # Bumper POMDP observation
@@ -504,10 +504,19 @@ function get_a_random_state(m::RoombaMDP, rng::AbstractRNG)
     th = rand(rng) * 2*pi - pi
     roomba = RoombaState(x, y, th)
 
-    h_x, h_y = init_pos(m.room, rng)
+    if m.config == 4
+        h_x = 0.0
+        h_y = 0.0
+    else
+        h_x, h_y = init_pos(m.room, rng)
+    end
     h_th = rand(rng) * 2*pi - pi
     human = HumanState(h_x, h_y, h_th)
-    obstacles = [ObstacleState(12, -1), ObstacleState(-18, -8), ObstacleState(-22, -12), ObstacleState(-10, 0)]
+    if m.config == 4
+        obstacles = [ObstacleState(a, b) for a in -7:-5, b in 0:5]
+    else
+        obstacles = [ObstacleState(12, -1), ObstacleState(-18, -8), ObstacleState(-22, -12), ObstacleState(-10, 0)]
+    end
     visited = zeros(n_states(m))
     return FullRoombaState(roomba, human, obstacles, visited)
 end
@@ -563,7 +572,7 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     # Draw real obs locations, why are these the exact same?
     for obs in state.obstacles
         x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
-        arc(ctx, x_o, y_o, radius, 0, 2*pi)
+        rectangle(ctx, x_o-5, y_o-5, 10, 10)
         set_source_rgb(ctx, 0, 0, 1)
         fill(ctx)
     end

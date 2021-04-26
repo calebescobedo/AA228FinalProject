@@ -236,26 +236,31 @@ mutable struct Room
         # Initialize array of rectangles
         rectangles = []
 
-        # Rectangle 1
-        corners = round_corners(sspace,[[-20-RW -20]; [-20-RW 0-RW]; [-20+RW 0-RW]; [-20+RW -20]])
-        walls = [true, false, true, true] # top wall shared
-        push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[1], stair_idx=stair_idxs[1]))
+        if configuration == 4
+            corners = round_corners(sspace, [[-8.0 -6.0]; [-8.0 6.0]; [8.0 6.0]; [8.0 -6.0]])
+            walls = [true, true, true, true]
+            push!(rectangles, Rectangle(corners, walls))
+        else
+            # Rectangle 1
+            corners = round_corners(sspace,[[-20-RW -20]; [-20-RW 0-RW]; [-20+RW 0-RW]; [-20+RW -20]])
+            walls = [true, false, true, true] # top wall shared
+            push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[1], stair_idx=stair_idxs[1]))
 
-        # Rectangle 2
-        corners = round_corners(sspace,[[-20-RW 0-RW]; [-20-RW 0+RW]; [-20+RW 0+RW]; [-20+RW 0-RW]])
-        walls = [true, true, false, false] # bottom, right wall shared
-        push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[2], stair_idx=stair_idxs[2]))
+            # Rectangle 2
+            corners = round_corners(sspace,[[-20-RW 0-RW]; [-20-RW 0+RW]; [-20+RW 0+RW]; [-20+RW 0-RW]])
+            walls = [true, true, false, false] # bottom, right wall shared
+            push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[2], stair_idx=stair_idxs[2]))
 
-        # Rectangle 3
-        corners = round_corners(sspace,[[-20+RW 0-RW]; [-20+RW 0+RW]; [10 0+RW]; [10 0-RW]])
-        walls = [false, true, false, true] # left wall shared
-        push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[3], stair_idx=stair_idxs[3]))
+            # Rectangle 3
+            corners = round_corners(sspace,[[-20+RW 0-RW]; [-20+RW 0+RW]; [10 0+RW]; [10 0-RW]])
+            walls = [false, true, false, true] # left wall shared
+            push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[3], stair_idx=stair_idxs[3]))
 
-        # Rectangle 4
-        corners = round_corners(sspace,[[10 0-RW]; [10 0+RW]; [10+RW 0+RW]; [10+RW 0-RW]])
-        walls = [false, true, true, true] # left wall shared
-        push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[4], stair_idx=stair_idxs[4]))
-
+            # Rectangle 4
+            corners = round_corners(sspace,[[10 0-RW]; [10 0+RW]; [10+RW 0+RW]; [10+RW 0-RW]])
+            walls = [false, true, true, true] # left wall shared
+            push!(rectangles, Rectangle(corners, walls, goal_idx=goal_idxs[4], stair_idx=stair_idxs[4]))
+        end
         retval.rectangles = rectangles
         retval.areas = [r.area for r in rectangles]
 
