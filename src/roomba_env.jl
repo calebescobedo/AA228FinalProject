@@ -428,6 +428,17 @@ function lidar_obs_distribution(m::RoombaMDP, ray_stdev::Float64, sp::FullRoomba
     rl = ray_length(m.room, SVec2(x, y), SVec2(cos(th), sin(th)))
     ang_to_human = atan(sp.human.y-y, sp.human.x-x)
     # @show rl, x, y, sp.human.x, sp.human.y, ang_to_human, th
+    ang_to_obs = float(Inf)
+    rl_to_obs = float(Inf)
+    for obs in sp.obstacles
+        if atan(obs.y-y, obs.x-x) < ang_to_obs
+            ang_to_obs = atan(obs.y-y, obs.x-x)
+            rl_to_obs = norm([obs.y-y, obs.x-x])
+            if abs(ang_to_obs - th) < 0.0873 && rl_to_obs < rl
+                rl = rl_to_obs
+            end
+        end
+    end
     rl_to_human = float(Inf)
     if abs(ang_to_human - th) < 0.0873*2 # around 5 deg
         rl_to_human = norm([sp.human.y-y, sp.human.x-x])
@@ -566,7 +577,7 @@ function render(ctx::CairoContext, m::RoombaModel, step)
             if state.visited[state_to_index(m, x, y)] == 1.0
                 x_v, y_v = transform_coords(SVec2(x, y))
                 visited_total += 1
-                arc(ctx, floor(x_v), floor(y_v), radius, 0, 2*pi)
+                arc(ctx, floor(x_v), floor(y_v), radius/2.0, 0, 2*pi)
                 set_source_rgb(ctx, 0, 1.0, 0)
                 fill(ctx)
             end

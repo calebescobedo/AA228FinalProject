@@ -20,7 +20,8 @@ end
 
 function RoombaParticleFilter(model, n::Integer, v_noise_coeff, om_noise_coeff, rng::AbstractRNG=Random.GLOBAL_RNG)
     return RoombaParticleFilter(model,
-                               ImportanceResampler(n),
+                            #    ImportanceResampler(n),
+                               LowVarianceResampler(n),
                                n,
                                v_noise_coeff,
                                om_noise_coeff,
@@ -46,7 +47,6 @@ function POMDPs.update(up::RoombaParticleFilter, b::ParticleCollection{FullRoomb
             sp = @gen(:sp)(up.model, s, a_pert, up.rng)
             sp.human.x += (rand()-0.5) * 0.5
             sp.human.y += (rand()-0.5) * 0.5
-            # @show rand()
             push!(pm, sp)
             push!(wm, obs_weight(up.model, s, a_pert, sp, o))
         end

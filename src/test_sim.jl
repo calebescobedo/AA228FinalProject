@@ -35,7 +35,7 @@ speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
-num_particles = 10000
+num_particles = 500
 v_noise_coefficient = 2.0
 om_noise_coefficient = 0.5
 
@@ -93,23 +93,24 @@ heuristic = ToEnd(0) # here, the argument sets the time-steps elapsed to 0
 
 
 # run the simulation
-c = @GtkCanvas()
-win = GtkWindow(c, "Roomba Environment", 600, 600)
-for (t, step) in enumerate(stepthrough(m, pomcp, belief_updater, max_steps=300))
-    @guarded draw(c) do widget
-        # the following lines render the room, the particles, and the roomba
-        ctx = getgc(c)
-        set_source_rgb(ctx,1,1,1)
-        paint(ctx)
-        render(ctx, m, step)
-        # render some information that can help with debugging
-        # here, we render the time-step, the state, and the observation
-        move_to(ctx,300,400)
-        show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
-        # show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
-    end
-    show(c)
-    sleep(0.1) # to slow down the simulation
-end
-# @show mean(simulate(RolloutSimulator(max_steps=300), m, pomcp, belief_updater) for _ in 1:10)
-# @show mean(simulate(RolloutSimulator(max_steps=300), m, heuristic, belief_updater) for _ in 1:10)
+# c = @GtkCanvas()
+# win = GtkWindow(c, "Roomba Environment", 600, 600)
+# for (t, step) in enumerate(stepthrough(m, pomcp, belief_updater, max_steps=300))
+#     @guarded draw(c) do widget
+#         # the following lines render the room, the particles, and the roomba
+#         ctx = getgc(c)
+#         set_source_rgb(ctx,1,1,1)
+#         paint(ctx)
+#         render(ctx, m, step)
+#         # render some information that can help with debugging
+#         # here, we render the time-step, the state, and the observation
+#         move_to(ctx,300,400)
+#         show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
+#         # show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
+#     end
+#     show(c)
+#     sleep(0.1) # to slow down the simulation
+# end
+
+@show mean(simulate(RolloutSimulator(max_steps=500), m, pomcp, belief_updater) for _ in 1:3)
+@show mean(simulate(RolloutSimulator(max_steps=500), m, heuristic, belief_updater) for _ in 1:3)
