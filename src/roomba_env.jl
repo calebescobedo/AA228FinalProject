@@ -27,7 +27,7 @@ struct ObstacleState <: FieldVector{2, Float64}
     y::Float64
 end
 
-struct HumanState <: FieldVector{3, Float64}
+mutable struct HumanState <: FieldVector{3, Float64}
     x::Float64
     y::Float64
     theta::Float64
@@ -392,7 +392,7 @@ function POMDPs.reward(m::RoombaModel,
     # penalty for bumping into human
     dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
     if dis_to_human < 1
-        cum_reward += mdp(m).contact_pen * 10
+        cum_reward += mdp(m).contact_pen * 100
     elseif dis_to_human < 2
         cum_reward += mdp(m).contact_pen * 3
     end
@@ -408,7 +408,7 @@ POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = check_terminal(m, s)
 
 function check_terminal(m::RoombaModel, s::FullRoombaState)
     dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
-    return (sum(s.visited) == (n_states(m)-num_obs) )#|| dis_to_human < 1)
+    return (sum(s.visited) == (n_states(m)-num_obs) || dis_to_human < 1)
 end
 
 # Bumper POMDP observation

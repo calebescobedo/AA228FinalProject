@@ -35,7 +35,7 @@ speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
-num_particles = 5000
+num_particles = 10000
 v_noise_coefficient = 2.0
 om_noise_coefficient = 0.5
 
@@ -85,7 +85,7 @@ end
 
 
 # first seed the environment
-Random.seed!(3)
+Random.seed!(20)
 
 # reset the policy
 heuristic = ToEnd(0) # here, the argument sets the time-steps elapsed to 0

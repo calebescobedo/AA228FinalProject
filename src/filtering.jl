@@ -44,6 +44,9 @@ function POMDPs.update(up::RoombaParticleFilter, b::ParticleCollection{FullRoomb
             # noise added here:
             a_pert = a + SVec2(up.v_noise_coeff*(rand(up.rng)-0.5), up.om_noise_coeff*(rand(up.rng)-0.5))
             sp = @gen(:sp)(up.model, s, a_pert, up.rng)
+            sp.human.x += (rand()-0.5) * 0.5
+            sp.human.y += (rand()-0.5) * 0.5
+            # @show rand()
             push!(pm, sp)
             push!(wm, obs_weight(up.model, s, a_pert, sp, o))
         end
