@@ -392,7 +392,7 @@ function POMDPs.reward(m::RoombaModel,
     # penalty for bumping into human
     dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
     if dis_to_human < 1
-        cum_reward += mdp(m).contact_pen * 100
+        cum_reward += mdp(m).contact_pen * 10
     elseif dis_to_human < 2
         cum_reward += mdp(m).contact_pen * 3
     end
