@@ -312,7 +312,7 @@ function POMDPs.states(m::RoombaModel)
     th_states = range(-pi, stop=pi, step=0.174533)
     roomba_states = vec(collect(RoombaState(x,y,th) for x in x_states, y in y_states, th in th_states))
     human_states = vec(collect(HumanState(x,y,th) for x in x_states, y in y_states, th in th_states))
-    obstacle_states = [ObstacleState(2, 3), ObstacleState(5, 3), ObstacleState(4, 7), ObstacleState(3, 7), ObstacleState(8, 9)]
+    obstacle_states = [ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9), ObstacleState(8, 9)]
     visited_states = get_possible_visited_states([], length(x_states)*length(y_states))
     return vec(collect(FullRoombaState(rs, hs, obstacle_states, vs) for rb in roomba_states, hs in human_states, vs in visited_states))
 end
@@ -381,8 +381,11 @@ function POMDPs.reward(m::RoombaModel,
 
     # penalty for bumping into obstacles
     for obs in sp.obstacles
-        if state_to_index(m, sp.roomba.x, sp.roomba.y) == state_to_index(m, obs.x, obs.y)
+        dist_to_obs = norm([obs.y-s.roomba.y, obs.x-s.roomba.x])
+        if dist_to_obs < 1
             cum_reward += mdp(m).contact_pen
+        elseif dist_to_obs < 2
+            cum_reward += mdp(m).contact_pen * 0.5
         end
     end
 
@@ -405,7 +408,7 @@ POMDPs.isterminal(m::RoombaModel, s::FullRoombaState) = check_terminal(m, s)
 
 function check_terminal(m::RoombaModel, s::FullRoombaState)
     dis_to_human = norm([s.human.y-s.roomba.y, s.human.x-s.roomba.x])
-    return (sum(s.visited) == (n_states(m)-num_obs) || dis_to_human < 1)
+    return (sum(s.visited) == (n_states(m)-num_obs) )#|| dis_to_human < 1)
 end
 
 # Bumper POMDP observation
@@ -493,7 +496,7 @@ function get_a_random_state(m::RoombaMDP, rng::AbstractRNG)
     h_x, h_y = init_pos(m.room, rng)
     h_th = rand(rng) * 2*pi - pi
     human = HumanState(h_x, h_y, h_th)
-    obstacles = [ObstacleState(2, 3), ObstacleState(5, 3), ObstacleState(4, 7), ObstacleState(3, 7), ObstacleState(8, 9)]
+    obstacles = [ObstacleState(12, -1), ObstacleState(-18, -8), ObstacleState(-22, -12), ObstacleState(-10, 0)]
     visited = zeros(n_states(m))
     return FullRoombaState(roomba, human, obstacles, visited)
 end
@@ -527,14 +530,6 @@ function render(ctx::CairoContext, m::RoombaModel, step)
                 arc(ctx, x_h, y_h, radius*1.2, 0, 2*pi)
                 set_source_rgba(ctx, 0, 0, 0, 0.3)
                 fill(ctx)
-
-                # # draw obj locations
-                # for obs in p.obstacles
-                #     x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
-                #     arc(ctx, x_o, y_o, radius*1.2, 0, 2*pi)
-                #     set_source_rgba(ctx, 0, 0.5, 0.5, 0.1)
-                #     fill(ctx)
-                # end
             end
         end
     end
@@ -555,20 +550,22 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     fill(ctx)
 
     # Draw real obs locations, why are these the exact same?
-    # for obs in state.obstacles
-    #     x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
-    #     arc(ctx, x_o, y_o, radius, 0, 2*pi)
-    #     set_source_rgb(ctx, 0, 0, 1)
-    #     fill(ctx)
-    # end
+    for obs in state.obstacles
+        x_o, y_o = transform_coords(SVec2(obs[1], obs[2]))
+        arc(ctx, x_o, y_o, radius, 0, 2*pi)
+        set_source_rgb(ctx, 0, 0, 1)
+        fill(ctx)
+    end
 
     ss = dsspace(m)
     x_states = range(ss.XLIMS[1], stop=ss.XLIMS[2], step=ss.x_step)
     y_states = range(ss.YLIMS[1], stop=ss.YLIMS[2], step=ss.y_step)
+    visited_total = 0
     for x in x_states
         for y in y_states
             if state.visited[state_to_index(m, x, y)] == 1.0
                 x_v, y_v = transform_coords(SVec2(x, y))
+                visited_total += 1
                 arc(ctx, floor(x_v), floor(y_v), radius, 0, 2*pi)
                 set_source_rgb(ctx, 0, 1.0, 0)
                 fill(ctx)
@@ -577,6 +574,9 @@ function render(ctx::CairoContext, m::RoombaModel, step)
     end
 
 
+    move_to(ctx,300,400)
+    set_source_rgb(ctx, 1.0, 1.0, 1.0)
+    show_text(ctx, @sprintf("visited=%d",visited_total))
 
 
     # Draw line indicating orientation

@@ -20,7 +20,7 @@ end
 
 function RoombaParticleFilter(model, n::Integer, v_noise_coeff, om_noise_coeff, rng::AbstractRNG=Random.GLOBAL_RNG)
     return RoombaParticleFilter(model,
-                               LowVarianceResampler(n),
+                               ImportanceResampler(n),
                                n,
                                v_noise_coeff,
                                om_noise_coeff,
