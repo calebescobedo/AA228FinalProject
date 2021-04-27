@@ -32,7 +32,7 @@ mutable struct HumanState <: FieldVector{3, Float64}
     theta::Float64
 end
 
-struct RoombaState <: FieldVector{3, Float64}
+mutable struct RoombaState <: FieldVector{3, Float64}
     x::Float64
     y::Float64
     theta::Float64

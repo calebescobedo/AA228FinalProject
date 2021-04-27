@@ -47,6 +47,32 @@ function POMDPs.update(up::RoombaParticleFilter, b::ParticleCollection{FullRoomb
             sp = @gen(:sp)(up.model, s, a_pert, up.rng)
             sp.human.x += (rand()-0.5) * 0.5
             sp.human.y += (rand()-0.5) * 0.5
+            #random resample robot state
+            if rand() < 0.01
+                sp.roomba.x = rand() * 34.0 - 23.0
+                if sp.roomba.x > -16
+                    sp.roomba.y = rand() * (-6.0) + 3
+                else
+                    sp.roomba.y = rand() * (-23.0) + 4
+                end
+            end
+
+            # random resample human state
+            if rand() < 0.01
+                if sp.human.theta == 3.14
+                    sp.human.theta = 0
+                else
+                    sp.human.theta = 3.14
+                end
+                sp.human.x = rand() * 34.0 - 23.0
+                if sp.human.x > -16
+                    sp.human.y = rand() * (-6.0) + 3
+                else
+                    sp.human.y = rand() * (-23.0) + 4
+                end
+            end
+
+
             push!(pm, sp)
             push!(wm, obs_weight(up.model, s, a_pert, sp, o))
         end
