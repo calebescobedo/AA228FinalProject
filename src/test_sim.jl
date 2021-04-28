@@ -46,57 +46,40 @@ belief_updater = RoombaParticleFilter(m, num_particles, v_noise_coefficient, om_
 
 
 # Define the policy to test
-mutable struct ToEnd <: Policy
-    ts::Int64 # to track the current time-step.
+struct RandomWalk <: Policy
 end
-
-# extract goal for heuristic controller
-goal_xy = get_goal_xy(m)
-pomcp = solve(POMCPSolver(), m)
-pomcpow = solve(POMCPOWSolver(criterion=MaxUCB(2.0)), m)
-lower = -2 # close proximity to a wall
-upper = 2
-ardespot = solve(DESPOTSolver(bounds=IndependentBounds(lower, upper, check_terminal=true)), m)
-
 # define a new function that takes in the policy struct and current belief,
 # and returns the desired action
-function POMDPs.action(p::ToEnd, b::ParticleCollection{<:FullRoombaState})
-    p.ts += 1
-    if (p.ts % 5 == 0)
-        return RoombaAct(1, 0.8) #30 degrees
+function POMDPs.action(p::RandomWalk, b::ParticleCollection{FullRoombaState})
+    return rand(actions(m))
+end
 
+struct Heuristic <: Policy
+    ts::Int64 # to track the current time-step
+end
+
+function POMDPs.action(p::Heuristic, b::ParticleCollection{FullRoombaState})
+    p.ts += 1
+    if (p.ts % 5) == 0
+        return RoombaAct(1, 0.8) # 30 degrees
     else
         return RoombaAct(1, 0)
     end
-
-
-    # # after 50 time-steps, we follow a proportional controller to navigate
-    # # directly to the goal, using the mean belief state
-    # s = mean(b) # TODO: right now we can't take the mean of our system, how can we add all parts togeather
-    # # compute the difference between our current heading and one that would
-    # # point to the goal
-    # goal_x, goal_y = goal_xy
-    # x,y,th = s[1:3]
-    # ang_to_goal = atan(goal_y - y, goal_x - x)
-    # del_angle = wrap_to_pi(ang_to_goal - th)
-
-    # # apply proportional control to compute the turn-rate
-    # Kprop = 1.0
-    # om = Kprop * del_angle
-
-    # # always travel at some fixed velocity
-    # v = 5.0
-
 end
 
+
+lower = -2
+upper = 2
+ardespot = solve(DESPOTSolver(bounds=IndependentBounds(lower, upper, check_terminal=true), T_max=2.0, K=50), m)
 
 # first seed the environment
 Random.seed!(20)
 
+
 # reset the policy
-heuristic = ToEnd(0) # here, the argument sets the time-steps elapsed to 0
+random_walk = RandomWalk()
 
-
+heuristic = Heuristic(0)
 
 # run the simulation
 c = @GtkCanvas()
