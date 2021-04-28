@@ -24,6 +24,7 @@ using Gtk
 using Random
 using Printf
 using QMDP
+using ProfileView
 
 
 include("line_segment_utils.jl")
@@ -60,18 +61,18 @@ ardespot = solve(DESPOTSolver(bounds=IndependentBounds(lower, upper, check_termi
 # define a new function that takes in the policy struct and current belief,
 # and returns the desired action
 function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
+    p.ts += 1
+    if (p.ts % 5 == 0)
+        return RoombaAct(1, 0.8) #30 degrees
 
-    # # spin around to localize for the first 50 time-steps
-    # if p.ts < 20
-    #     p.ts += 1
-    #     return RoombaAct(0.,-1.0) # all actions are of type RoombaAct(v,om)
-    # end
-    # p.ts += 1
+    else
+        return RoombaAct(1, 0)
+    end
+
 
     # # after 50 time-steps, we follow a proportional controller to navigate
     # # directly to the goal, using the mean belief state
     # s = mean(b) # TODO: right now we can't take the mean of our system, how can we add all parts togeather
-
     # # compute the difference between our current heading and one that would
     # # point to the goal
     # goal_x, goal_y = goal_xy
@@ -86,7 +87,6 @@ function POMDPs.action(p::ToEnd, b::ParticleCollection{FullRoombaState})
     # # always travel at some fixed velocity
     # v = 5.0
 
-    return rand(actions(m))
 end
 
 
@@ -99,29 +99,30 @@ heuristic = ToEnd(0) # here, the argument sets the time-steps elapsed to 0
 
 
 # run the simulation
-c = @GtkCanvas()
-win = GtkWindow(c, "Roomba Environment", 600, 600)
-for (t, step) in enumerate(stepthrough(m, pomcp, belief_updater, max_steps=300))
-# for (t, step) in enumerate(stepthrough(m, pomcpow, belief_updater, max_steps=300))
-# for (t, step) in enumerate(stepthrough(m, ardespot, belief_updater, max_steps=300))
-    @guarded draw(c) do widget
-        # the following lines render the room, the particles, and the roomba
-        ctx = getgc(c)
-        set_source_rgb(ctx,1,1,1)
-        paint(ctx)
-        render(ctx, m, step)
-        # render some information that can help with debugging
-        # here, we render the time-step, the state, and the observation
-        move_to(ctx,300,400)
-        show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
-        # show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
-    end
-    show(c)
-    sleep(0.1) # to slow down the simulation
-end
+# c = @GtkCanvas()
+# win = GtkWindow(c, "Roomba Environment", 600, 600)
+# # for (t, step) in enumerate(stepthrough(m, pomcp, belief_updater, max_steps=300))
+# for (t, step) in enumerate(stepthrough(m, heuristic, belief_updater, max_steps=300))
+# # for (t, step) in enumerate(stepthrough(m, pomcpow, belief_updater, max_steps=300))
+# # for (t, step) in enumerate(stepthrough(m, ardespot, belief_updater, max_steps=300))
+#     @guarded draw(c) do widget
+#         # the following lines render the room, the particles, and the roomba
+#         ctx = getgc(c)
+#         set_source_rgb(ctx,1,1,1)
+#         paint(ctx)
+#         render(ctx, m, step)
+#         # render some information that can help with debugging
+#         # here, we render the time-step, the state, and the observation
+#         move_to(ctx,300,400)
+#         show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
+#         # show_text(ctx, @sprintf("t=%d, state=%s, o=%.3f",t,string(step.s),step.o))
+#     end
+#     show(c)
+#     sleep(0.1) # to slow down the simulation
+# end
 
 
-# @time @show simulate(RolloutSimulator(max_steps=100), m, pomcp, belief_updater)
+@profview simulate(RolloutSimulator(max_steps=100), m, pomcp, belief_updater)
 # @time @show simulate(RolloutSimulator(max_steps=100), m, ardespot, belief_updater)
 # @time @show simulate(RolloutSimulator(max_steps=100), m, pomcpow, belief_updater)
 # @time @show simulate(RolloutSimulator(max_steps=100), m, heuristic, belief_updater)
