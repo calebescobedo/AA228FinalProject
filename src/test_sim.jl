@@ -32,12 +32,12 @@ include("roomba_env.jl")
 include("filtering.jl")
 
 s = Lidar()
-config = 3 # 1,2, or 3
+config = 3 # 1,2,3 or 4
 speed = 2.0
 aspace = vec([RoombaAct(v, om) for v in (0.0, speed), om in (-1.0, 0, 1.0)])
 m = RoombaPOMDP(sensor=s, mdp=RoombaMDP(config=config, aspace=aspace));
 
-num_particles = 1000
+num_particles = 5000
 v_noise_coefficient = 2.0
 om_noise_coefficient = 0.5
 
@@ -126,4 +126,19 @@ end
 # @time @show simulate(RolloutSimulator(max_steps=100), m, pomcpow, belief_updater)
 # @time @show simulate(RolloutSimulator(max_steps=100), m, heuristic, belief_updater)
 # @show mean(simulate(RolloutSimulator(max_steps=500), m, heuristic, belief_updater) for _ in 1:3)
-# @show mean(simulate(RolloutSimulator(max_steps=500), m, pomcp, belief_updater) for _ in 1:3)
+# @show mean(simulate(RolloutSimulator(max_steps=500), m, pomcp, belief_updater) for _ in 1:3)pomcp_data = [simulate(RolloutSimulator(max_steps=100), m, pomcp, belief_updater) for _ in 1:10]
+@show pomcp_data
+@show mean(pomcp_data)
+@show std(pomcp_data)
+pomcpow_data = [simulate(RolloutSimulator(max_steps=100), m, pomcpow, belief_updater) for _ in 1:10]
+@show pomcpow_data
+@show mean(pomcpow_data)
+@show std(pomcpow_data)
+despot_data = [simulate(RolloutSimulator(max_steps=100), m, ardespot, belief_updater) for _ in 1:10]
+@show despot_data
+@show mean(despot_data)
+@show std(despot_data)
+heuristic_data = [simulate(RolloutSimulator(max_steps=100), m, heuristic, belief_updater) for _ in 1:10]
+@show heuristic_data
+@show mean(heuristic_data)
+@show std(heuristic_data)
