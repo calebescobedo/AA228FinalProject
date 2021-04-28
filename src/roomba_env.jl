@@ -38,11 +38,11 @@ mutable struct RoombaState <: FieldVector{3, Float64}
     theta::Float64
 end
 
-struct FullRoombaState
+struct FullRoombaState{O}
     roomba::RoombaState
     human::HumanState
-    obstacles
-    visited
+    obstacles::O
+    visited::BitVector
 end
 
 
@@ -310,7 +310,7 @@ function get_next_state(m::RoombaMDP, s::FullRoombaState, a::RoombaAct)
         hs = HumanState(next_h_x, next_h_y, wrap_to_pi(next_h_th))
     end
 
-    visited = deepcopy(s.visited)
+    visited = copy(s.visited)
     # @show state_to_index(m, roomba.x, roomba.y)
     visited[state_to_index(m, roomba.x, roomba.y)] = 1.0
 
@@ -517,7 +517,7 @@ function get_a_random_state(m::RoombaMDP, rng::AbstractRNG)
     else
         obstacles = [ObstacleState(12, -1), ObstacleState(-18, -8), ObstacleState(-22, -12), ObstacleState(-10, 0)]
     end
-    visited = zeros(n_states(m))
+    visited = falses(n_states(m))
     return FullRoombaState(roomba, human, obstacles, visited)
 end
 

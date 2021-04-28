@@ -16,6 +16,7 @@ const ROBOT_W = ROBOT_W_struct(DEFAULT_ROBOT_W)
 # walls: length 4 list of bools specifying
 #		 if left, top, right, bottom sides are
 #		 open (False) or walls (True)
+
 mutable struct Rectangle
     corners::Array{Float64, 2}
     walls::Array{Bool, 1}
