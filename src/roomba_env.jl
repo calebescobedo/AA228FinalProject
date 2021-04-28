@@ -136,7 +136,7 @@ Define the Roomba MDP.
     time_pen::Float64 = -0.1
     goal_reward::Float64 = 10
     stairs_penalty::Float64 = -10
-    discount::Float64 = 0.95
+    discount::Float64 = 0.99
     config::Int = 1
     sspace::SS = ContinuousRoombaStateSpace()
     dsspace::DiscreteRoombaStateSpace = DiscreteRoombaStateSpace(100, 100)
@@ -440,7 +440,7 @@ function lidar_obs_distribution(m::RoombaMDP, ray_stdev::Float64, sp::FullRoomba
         end
     end
     rl_to_human = float(Inf)
-    if abs(ang_to_human - th) < 0.0873*2 # around 5 deg
+    if abs(ang_to_human - th) < 0.0873 # around 5 deg
         rl_to_human = norm([sp.human.y-y, sp.human.x-x])
     end
 
